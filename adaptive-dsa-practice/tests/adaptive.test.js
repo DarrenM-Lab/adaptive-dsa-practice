@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { initialState, weightedPick, nextProblem, submitResult, pickProblem, validateState } from '../js/adaptive.js';
+import { PATTERNS, PROBLEMS } from '../js/problems.js';
+test('all 12 patterns have valid problem slugs', () => {assert.equal(PATTERNS.length,12);for(const p of PATTERNS){assert.ok(PROBLEMS[p].length);for(const problem of PROBLEMS[p])assert.ok(problem.slug && problem.title && problem.note);}});
+test('weighted scheduler excludes last pattern', () => {const s=initialState();s.lastPattern=PATTERNS[0];for(const r of [0,.1,.5,.99])assert.notEqual(weightedPick(s,()=>r),PATTERNS[0]);});
+test('struggling raises weight and clean solves lower it', () => {const s=initialState();nextProblem(s,()=>0);const p=s.current.pattern;submitResult(s,'stuck');assert.equal(s.weights[p],2);nextProblem(s,()=>0);submitResult(s,'clean');assert.equal(s.weights[s.current.pattern],.5);});
+test('two clean solves advance a pattern with hard questions',()=>{const s=initialState(),p='Graphs';for(let i=0;i<2;i++){s.current={...PROBLEMS[p][0],pattern:p,revealed:false};submitResult(s,'clean');}assert.equal(s.difficulty[p],1);});
+test('no repeats before exhausting a tier',()=>{const s=initialState(),p='Graphs';const seen=new Set();const size=PROBLEMS[p].filter(x=>x.tier==='medium').length;for(let i=0;i<size;i++){const problem=pickProblem(s,p,()=>0);assert.ok(!seen.has(problem.slug));seen.add(problem.slug);}assert.equal(seen.size,size);});
+test('duplicate submissions rejected',()=>{const s=initialState();nextProblem(s);submitResult(s,'clean');assert.throws(()=>submitResult(s,'clean'));});
+test('valid export state passes validation',()=>assert.deepEqual(validateState(initialState()),initialState()));
